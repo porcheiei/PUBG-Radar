@@ -1,6 +1,9 @@
 package pubg.radar.ui
 
 import com.badlogic.gdx.*
+import com.badlogic.gdx.Input.Buttons.LEFT
+import com.badlogic.gdx.Input.Buttons.RIGHT
+import com.badlogic.gdx.Input.Buttons.MIDDLE
 import com.badlogic.gdx.audio.Sound
 import com.badlogic.gdx.backends.lwjgl3.*
 import com.badlogic.gdx.graphics.*
@@ -12,8 +15,6 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType.*
 import com.badlogic.gdx.math.*
-import com.badlogic.gdx.ApplicationListener
-import com.badlogic.gdx.Input.Buttons.*
 import pubg.radar.*
 import pubg.radar.deserializer.channel.ActorChannel.Companion.actors
 import pubg.radar.deserializer.channel.ActorChannel.Companion.airDropLocation
@@ -84,7 +85,6 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
 
   override fun onGameOver() {
     camera.zoom = 1 / 7f
-    itemCamera.zoom
 
     aimStartTime.clear()
     attackLineStartTime.clear()
@@ -94,10 +94,10 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
   fun show() {
     val config = Lwjgl3ApplicationConfiguration()
     config.setTitle("[${targetAddr.hostAddress} ${sniffOption.name}] - Radar")
-    config.useOpenGL3(true, 3, 3)
-    config.setWindowedMode(1000, 1000)
+    config.useOpenGL3(true, 3, 2)
+    config.setWindowedMode(800, 800)
     config.setResizable(true)
-    config.setBackBufferConfig(8, 8, 8, 8, 32, 0, 8)
+    config.setBackBufferConfig(8, 8, 8, 8, 16, 0, 0)
     Lwjgl3Application(this, config)
   }
 
@@ -112,7 +112,6 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
   lateinit var alive: Texture
   lateinit var selficon: Texture
   lateinit var teamsalive: Texture
-  lateinit var largeFontShadow: BitmapFont
   lateinit var largeFont: BitmapFont
   lateinit var littleFont: BitmapFont
   lateinit var nameFont: BitmapFont
@@ -121,13 +120,10 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
   lateinit var itemCamera: OrthographicCamera
   lateinit var camera: OrthographicCamera
   lateinit var alarmSound: Sound
-  lateinit var nameFontShadow: BitmapFont
-  lateinit var compaseFont: BitmapFont
-  lateinit var compaseFontShadow: BitmapFont
 
-  val tileZooms = listOf("256", "512", "1024", "2048", "4096")
+  val tileZooms = listOf("256", "512", "1024", "2048", "4096"/*, "8192"*/)
   val tileRowCounts = listOf(1, 2, 4, 8, 16/*, 32*/)
-  val tileSizes = listOf(819200f, 409600f, 204800f, 102400f, 51200f)
+  val tileSizes = listOf(819200f, 409600f, 204800f, 102400f, 51200f/*, 25600f*/)
 
   val layout = GlyphLayout()
   var windowWidth = initialWindowWidth
@@ -153,15 +149,14 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
 
   override fun scrolled(amount: Int): Boolean {
     camera.zoom *= 1.1f.pow(amount)
-    itemCamera.zoom *= 1.1f.pow(amount)
     return true
   }
 
 
   override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
     if (button == RIGHT) {
-      pinLocation.set(pinLocation.set(screenX.toFloat(), screenY.toFloat()).windowToMap())
-      //  camera.update()
+    pinLocation.set(pinLocation.set(screenX.toFloat(), screenY.toFloat()).windowToMap())
+      camera.update()
       println(pinLocation)
       return true
     } else if (button == LEFT) {
@@ -172,10 +167,8 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
     } else if (button == MIDDLE) {
       screenOffsetX = 0f
       screenOffsetY = 0f
-
     }
     return false
-
   }
 
   override fun touchDragged (screenX: Int, screenY: Int, pointer: Int): Boolean {
@@ -269,28 +262,14 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
             mapMiramarTiles[it]?.set(y, mutableMapOf())
             for (j in 1..tileRowCounts[cur]) {
                 val x = if (j < 10) "0$j" else "$j"
-                mapErangelTiles[it]!![y]?.set(x, Texture(Gdx.files.internal("tiles/Erangel/${it}/${it}_${y}_${x}.png")))
-                mapMiramarTiles[it]!![y]?.set(x, Texture(Gdx.files.internal("tiles/Miramar/${it}/${it}_${y}_${x}.png")))
+                mapErangelTiles[it]!![y]?.set(x, Texture(Gdx.files.internal("tiles/Erangel/${it}/${it}_${y}_${x}-min.png")))
+                mapMiramarTiles[it]!![y]?.set(x, Texture(Gdx.files.internal("tiles/Miramar/${it}/${it}_${y}_${x}-min.png")))
             }
         }
         cur++
     }
     mapTiles = mapErangelTiles
-
-    val generatorNumber = FreeTypeFontGenerator(Gdx.files.internal("NUMBER.TTF"))
-    val paramNumber = FreeTypeFontParameter()
-    paramNumber.characters = DEFAULT_CHARS
-    paramNumber.size = 24
-    paramNumber.color = WHITE
-    largeFont = generatorNumber.generateFont(paramNumber)
-    paramNumber.color = Color(0f, 0f, 0f, 0.5f)
-    largeFontShadow = generatorNumber.generateFont(paramNumber)
-
-    paramNumber.color = compaseColor
-    paramNumber.size = 14
-    compaseFont = generatorNumber.generateFont(paramNumber)
-    paramNumber.color = Color(0f, 0f, 0f, 0.5f)
-    compaseFontShadow = generatorNumber.generateFont(paramNumber)
+    // map = mapErangel
 
     val generator = FreeTypeFontGenerator(Gdx.files.internal("GOTHICB.TTF"))
     val param = FreeTypeFontParameter()
@@ -307,12 +286,6 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
     param.color = ORANGE
     param.size = 10
     itemFont = generator.generateFont(param)
-
-    param.color = Color(0.9f, 0.9f, 0.9f, 1f)
-    param.size = 11
-    nameFont = generator.generateFont(param)
-    param.color = Color(0f, 0f, 0f, 0.5f)
-    nameFontShadow = generator.generateFont(param)
     generator.dispose()
   }
 
@@ -337,11 +310,12 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
     val cameraTileScale = Math.max(windowWidth, windowHeight) / camera.zoom
     var useScale = 0
     when {
-      cameraTileScale > 2048 -> useScale = 4
-      cameraTileScale > 1024 -> useScale = 3
-      cameraTileScale > 512 -> useScale = 2
-      cameraTileScale > 256 -> useScale = 1
-      else -> useScale = 0
+      cameraTileScale > 4096 -> useScale = 4
+      cameraTileScale > 2048 -> useScale = 3
+      cameraTileScale > 1024 -> useScale = 2
+      cameraTileScale > 512 -> useScale = 1
+     // cameraTileScale > 256 -> useScale = 1
+      else -> useScale = 4
     }
     val (tlX, tlY) = Vector2(0f, 0f).windowToMap()
     val (brX, brY) = Vector2(windowWidth, windowHeight).windowToMap()
@@ -401,30 +375,7 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
       littleFont.draw(spriteBatch, "$time", x, windowHeight - y)
       safeZoneHint()
       drawPlayerInfos(typeLocation[Player]) //PlayerName etc
-      for(i in -1..1) {
-        for(j in -1..1) {
-          compaseFontShadow.draw(spriteBatch, "0"  , windowWidth/2 + i, windowHeight/2 + 150 + j)        // N
-          compaseFontShadow.draw(spriteBatch, "45" , windowWidth/2 + 150 + i, windowHeight/2 + 150 + j)  // NE
-          compaseFontShadow.draw(spriteBatch, "90" , windowWidth/2 + 150 + i, windowHeight/2 + j)        // E
-          compaseFontShadow.draw(spriteBatch, "135", windowWidth/2 + 150 + i, windowHeight/2 - 150 + j)  // SE
-          compaseFontShadow.draw(spriteBatch, "180", windowWidth/2 + i, windowHeight/2 - 150 + j)        // S
-          compaseFontShadow.draw(spriteBatch, "225", windowWidth/2 - 150 + i, windowHeight/2 - 150+ j)   // SW
-          compaseFontShadow.draw(spriteBatch, "270", windowWidth/2 - 150 + i, windowHeight/2 + j)        // W
-          compaseFontShadow.draw(spriteBatch, "315", windowWidth/2 - 150 + i, windowHeight/2 + 150+ j)   // NW
-        }
-      }
-      compaseFont.draw(spriteBatch, "0"  , windowWidth/2, windowHeight/2 + 150)        // N
-      compaseFont.draw(spriteBatch, "45" , windowWidth/2 + 150, windowHeight/2 + 150)  // NE
-      compaseFont.draw(spriteBatch, "90" , windowWidth/2 + 150, windowHeight/2)        // E
-      compaseFont.draw(spriteBatch, "135", windowWidth/2 + 150, windowHeight/2 - 150)  // SE
-      compaseFont.draw(spriteBatch, "180", windowWidth/2, windowHeight/2 - 150)        // S
-      compaseFont.draw(spriteBatch, "225", windowWidth/2 - 150, windowHeight/2 - 150)  // SW
-      compaseFont.draw(spriteBatch, "270", windowWidth/2 - 150, windowHeight/2)        // W
-      compaseFont.draw(spriteBatch, "315", windowWidth/2 - 150, windowHeight/2 + 150)  // NW
     }
-
-
-
 
     paint(itemCamera.combined) {
       //Draw Airdrop Icon
@@ -456,31 +407,11 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
         .forEach {
           val (x, y) = it.first
           val items = it.second
+          val finalColor = it.third
 
           val (sx, sy) = Vector2(x+16, y-16).mapToWindow()
           val syFix = windowHeight - sy
-
-          var itemNameDrawBlacklist = arrayListOf(
-                  "AR.Stock",
-                  "S.Loops",
-                  "S.Comp",
-                  "U.Supp",
-                  "Choke",
-                  //"V.Grip",
-                  "A.Grip",
-                  "762",
-                  //"Ak",
-                  "U.Ext",
-                  "AR.Ext",
-                  "2x",
-                  "Vector",
-                  "Win94",
-                  "Bag2",
-                  "Grenade"
-          )
-
-          items.forEach {
-          if (it !in itemNameDrawBlacklist) {
+          items.forEach {         
             val iconScale = 2f / camera.zoom
             if (it in iconImages &&
                     iconScale > 8 &&
@@ -489,10 +420,8 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
               draw(iconImages[it], sx - iconScale / 2, syFix + iconScale / 2, iconScale, -iconScale,
                       0, 0, 32, 32,
                       false, true)
-            } else {
-              //itemFont.draw(spriteBatch, it, sx, syFix)
-          }
             }
+            
           }
         }
     }
@@ -515,8 +444,6 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
 
       //draw self
       drawPlayer(LIME, tuple4(null, selfX, selfY, selfDir.angle()))
-      drawTeam()
-
       //drawAirDrop(zoom)
       drawAPawn(typeLocation, selfX, selfY, zoom, currentTime)
 
@@ -529,17 +456,6 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
 
     Gdx.gl.glDisable(GL20.GL_BLEND)
   }
-
-
-  private fun drawTeam() {
-
-        //println("actorWithPlayerState:" +actorWithPlayerState)
-        //println("player names" + playerNames)
-       // println(selfID)
-
-  }
-
-
 
   private fun drawAttackLine(currentTime: Long) {
     while (attacks.isNotEmpty()) {
@@ -610,18 +526,18 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
 
   private fun drawGrid() {
     draw(Filled) {
-      color = BLACK
+/*       color = BLACK
       //thin grid
       for (i in 0..7)
         for (j in 0..9) {
-          rectLine(0f, i * unit + j * unit2, gridWidth, i * unit + j * unit2, 100f)
-          rectLine(i * unit + j * unit2, 0f, i * unit + j * unit2, gridWidth, 100f)
-        }
+          rectLine(0f, i * unit + j * unit2, gridWidth, i * unit + j * unit2, 160f)
+          rectLine(i * unit + j * unit2, 0f, i * unit + j * unit2, gridWidth, 160f)
+        } */
       color = GRAY
       //thick grid
       for (i in 0..7) {
-        rectLine(0f, i * unit, gridWidth, i * unit, 500f)
-        rectLine(i * unit, 0f, i * unit, gridWidth, 500f)
+        rectLine(0f, i * unit, gridWidth, i * unit, 250f)
+        rectLine(i * unit, 0f, i * unit, gridWidth, 250f)
       }
     }
   }
@@ -668,6 +584,10 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
           drawPlayer(WHITE, it, false)
         }
         else -> {
+          //            actorInfos?.forEach {
+          //            bugln { "${it._1!!.archetype.pathName} ${it._1.location}" }
+          //            drawPlayer(BLACK, it)
+          //            }
         }
       }
     }
@@ -700,21 +620,12 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
       query(name)
       if (completedPlayerInfo.containsKey(name)) {
         val info = completedPlayerInfo[name]!!
-        val desc = "($teamNumber)$name\n Kills: $numKills \n${info.killDeathRatio.d(2)} / ${info.headshotKillRatio.d(2)}"
-
-        for (i in -1..1)
-          for (j in -1..1)
-            nameFontShadow.draw(spriteBatch, desc, sx + 2 + i, windowHeight - sy - 6 + j)
-        nameFont.draw(spriteBatch, desc, sx + 2, windowHeight - sy - 6)
-      } else {
-        for (i in -1..1)
-          for (j in -1..1)
-            nameFontShadow.draw(spriteBatch, "($teamNumber)$name\n Kills: $numKills", sx + 2 + i, windowHeight - sy - 6 + j)
-        nameFont.draw(spriteBatch, "($teamNumber)$name \n Kills: $numKills", sx + 2, windowHeight - sy - 6)
-      }
+       val desc = "$name"    
+      } else nameFont.draw(spriteBatch, "$name", sx + 2, windowHeight - sy - 2)
     }
+    val profileText = "${completedPlayerInfo.size}/${completedPlayerInfo.size + pendingPlayerInfo.size}"
+    layout.setText(largeFont, profileText)
   }
-
 
   var lastPlayTime = System.currentTimeMillis()
 
@@ -871,9 +782,8 @@ class GLMap : InputAdapter(), ApplicationListener, GameListener {
     alive.dispose()
     teamsalive.dispose()
     selficon.dispose()
-    nameFontShadow.dispose()
-    compaseFont.dispose()
-    compaseFontShadow.dispose()
+    // mapErangel.dispose()
+    // mapMiramar.dispose()
     for ((key, image) in iconImages) {
       image.dispose()
     }
